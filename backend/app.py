@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -12,7 +14,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:0000@localhost/cof
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = '123456789'  # 设置您的 JWT 密钥
 jwt = JWTManager(app)  # 初始化 JWTManager
-
 
 
 # 初始化数据库
@@ -32,4 +33,3 @@ def index():
 
 if __name__ == '__main__':
     app.run(debug=True)
-

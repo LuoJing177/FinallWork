@@ -46,13 +46,13 @@
         <div class="add-item-form">
           <h3>添加新商品</h3>
           <form @submit.prevent="addNewMenuItem">
-            <input v-model="newItem.name" placeholder="商品名称" />
-            <input v-model="newItem.description" placeholder="商品描述" />
-            <input v-model.number="newItem.price" type="number" placeholder="价格" min="0" />
-            <input v-model.number="newItem.stock" type="number" placeholder="库存" min="0" />
-            <input type="file" @change="handleFileUpload" />
-            <button class="btn add-btn" @click="addNewMenuItem">添加商品</button>
-          </form>
+    <input v-model="newItem.name" placeholder="商品名称" />
+    <input v-model="newItem.description" placeholder="商品描述" />
+    <input v-model="newItem.price" type="text" placeholder="价格" min="0" step="0.01" />
+    <input v-model.number="newItem.stock" type="number" placeholder="库存" min="0" />
+    <input type="file" @change="handleFileUpload" />
+    <button class="btn add-btn" @click="addNewMenuItem">添加商品</button>
+</form>
         </div>
       </div>
     </div>
@@ -108,38 +108,50 @@ export default {
       this.selectedFile = event.target.files[0]; // 获取上传的文件
     },
     async addNewMenuItem() {
-      if (this.isSubmitting) return; // 如果已经在提交，阻止重复提交
-      this.isSubmitting = true; // 开始提交
+  if (this.isSubmitting) return; // 如果已经在提交，阻止重复提交
+  this.isSubmitting = true; // 开始提交
 
-      try {
-        if (this.selectedFile && this.newItem.name) {
-          const formData = new FormData();
-          formData.append('name', this.newItem.name);
-          formData.append('description', this.newItem.description);
-          formData.append('price', this.newItem.price);
-          formData.append('stock', this.newItem.stock);
-          formData.append('file', this.selectedFile);
+  try {
+    // 检查文件和名称是否已选择
+    if (this.selectedFile && this.newItem.name) {
+      // 将价格转换为小数
+      const price = parseFloat(this.newItem.price);
 
-          await axios.post('http://127.0.0.1:5000/api/menu_items_insert', formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-              Authorization: `Bearer ${localStorage.getItem('token')}`
-            }
-          });
-
-          alert('商品添加成功');
-          this.newItem = { name: '', description: '', price: 0, stock: 0 };
-          this.selectedFile = null;
-          this.fetchMenuItems();
-        } else {
-          alert('请填写商品名称并选择图片文件');
-        }
-      } catch (error) {
-        console.error('添加商品失败:', error);
-      } finally {
-        this.isSubmitting = false; // 提交完成后解除锁
+      // 确保价格是有效的小数且非负
+      if (isNaN(price) || price < 0) {
+          alert('价格必须是一个有效的非负小数');
+          return;
       }
-    },
+
+      const formData = new FormData();
+      formData.append('name', this.newItem.name);
+      formData.append('description', this.newItem.description);
+      formData.append('price', price); // 使用小数价格
+      formData.append('stock', this.newItem.stock);
+      formData.append('file', this.selectedFile);
+
+      // 提交数据到后端
+      await axios.post('http://127.0.0.1:5000/api/menu_items_insert', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      alert('商品添加成功');
+      // 重置表单
+      this.newItem = { name: '', description: '', price: '', stock: 0 }; // price 设为 ''
+      this.selectedFile = null;
+      this.fetchMenuItems();
+    } else {
+      alert('请填写商品名称并选择图片文件');
+    }
+  } catch (error) {
+    console.error('添加商品失败:', error);
+  } finally {
+    this.isSubmitting = false; // 提交完成后解除锁
+  }
+},
     async deleteMenuItem(id) {
       try {
         await axios.delete(`http://127.0.0.1:5000/api/menu_items/${id}`, {

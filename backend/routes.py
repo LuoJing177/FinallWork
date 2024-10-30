@@ -1,8 +1,6 @@
 import os
-
 from flask import Blueprint, jsonify, request
 from werkzeug.utils import secure_filename
-
 from models import db, MenuItem, User, Cart, CartItem, OrderItem, Order  # 直接导入 models 模块
 from flask import session  # 导入 session
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
@@ -372,8 +370,11 @@ def update_stock(menu_item_id):
 # 添加新商品
 # 指定图片存储的文件夹
 # 设置图片保存目录
-UPLOAD_FOLDER = 'E:/College/云计算/Coffee/frontend/coffee-order-frontend/public/images'
-ALLOWED_EXTENSIONS = {'jpg'}
+# UPLOAD_FOLDER = 'E:/College/云计算/Coffee/frontend/coffee-order-frontend/public/images'
+# 使用相对路径指向前端的图片保存目录
+# 定义相对路径的图片上传文件夹
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'coffee-order-frontend', 'public', 'images')
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
 
 
 def allowed_file(filename):
@@ -393,11 +394,26 @@ def add_new_menu_item():
 
         data = request.form
         item_name = data.get('name')
+        item_price = data.get('price')  # 获取价格
+
+        # 将价格转换为浮点数并验证
+        try:
+            price = float(item_price)
+            if price < 0:
+                return jsonify({'error': 'Price must be a non-negative number'}), 400
+        except ValueError:
+            return jsonify({'error': 'Invalid price value'}), 400
 
         if file and allowed_file(file.filename) and item_name:
-            # 将文件重命名为 商品名.jpg
-            filename = secure_filename(f"{item_name}.jpg")
+            # 确保目标目录存在
+            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+            # 获取文件扩展名
+            file_extension = file.filename.rsplit('.', 1)[1].lower()
+            # 将文件重命名为 商品名.扩展名
+            filename = secure_filename(f"{item_name}.{file_extension}")
+            # 使用 UPLOAD_FOLDER 来构建文件路径
             file_path = os.path.join(UPLOAD_FOLDER, filename)
+            print(file_path)
             file.save(file_path)
 
             # 检查是否重复提交
@@ -407,9 +423,9 @@ def add_new_menu_item():
             new_item = MenuItem(
                 name=item_name,
                 description=data.get('description'),
-                price=data.get('price'),
+                price=price,  # 使用转换后的浮点数价格
                 stock=data.get('stock'),
-                image=filename  # 存储图片名为商品名.jpg
+                image=filename  # 存储图片名为商品名.扩展名
             )
 
             # 防止重复提交：检查数据库中是否已经存在相同商品（通过名称）
@@ -440,12 +456,20 @@ def delete_menu_item(menu_item_id):
         if not menu_item:
             return jsonify({'error': 'Menu item not found'}), 404
 
+        # 删除文件
+        image_path = os.path.join(UPLOAD_FOLDER, menu_item.image)
+        if os.path.exists(image_path):
+            os.remove(image_path)  # 删除文件
+            print(f"Deleted image file: {image_path}")
+
+        # 从数据库中删除商品
         db.session.delete(menu_item)
         db.session.commit()
 
         return jsonify({'message': 'Menu item deleted successfully'}), 200
 
     except Exception as e:
+        db.session.rollback()  # 出现异常时回滚事务
         return jsonify({'error': str(e)}), 500
 
 
